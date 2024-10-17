@@ -17,7 +17,7 @@ public class AwsSqsConfig {
     public SqsClient sqsClient() {
         return SqsClient.builder()
         .region(Region.of(awsRegion))
-        .credentialsProvider(EnvironmentVariableCredentialsProvider.create())
+//        .credentialsProvider(EnvironmentVariableCredentialsProvider.create())
         .build();
     }
 }

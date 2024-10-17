@@ -20,7 +20,7 @@ public class ImageController{
     @Autowired
     private ImageService imageService;;
 
-    @PostMapping("/generate/hashtags")
+    @PostMapping("/bytes")
     public ResponseEntity<ImageResponse> generateHashtags(@RequestBody ImageDetailsDto imageDetailsList){
         ImageResponse response = imageService.processImageDetailsToQueue(imageDetailsList);
         return new ResponseEntity<>(response,HttpStatus.OK);
