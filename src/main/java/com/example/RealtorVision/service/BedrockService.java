@@ -9,8 +9,10 @@ import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelRequest;
 import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelResponse;
 
-import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,18 +28,16 @@ public class BedrockService {
 
     public String generateTagsFromImage(byte[] imageBytes) {
         try {
-            // Prepare the payload for the model
             Map<String, Object> payload = createPayload();
 
             String jsonPayload = objectMapper.writeValueAsString(payload);
             InvokeModelRequest request = buildInvokeModelRequest(jsonPayload);
 
-            // Invoke the model and handle the response
             InvokeModelResponse response = bedrockClient.invokeModel(request);
             return processResponse(response.body().asUtf8String());
         } catch (Exception e) {
             log.error("Error generating tags from image: {}", e.getMessage(), e);
-            return ""; // Return empty string in case of error
+            return "";
         }
     }
 
@@ -57,22 +57,21 @@ public class BedrockService {
     }
 
     private String processResponse(String responseBody) {
-        log.debug("Response Body: {}", responseBody); // Log the raw response body
+        log.debug("Response Body: {}", responseBody);
         String generatedTags = extractTags(responseBody);
-        return String.join(", ", processTags(generatedTags)); // Convert Set to a comma-separated string
+        return String.join(", ", processTags(generatedTags));
     }
 
     private String extractTags(String responseBody) {
-        // Updated regex pattern to capture tags more simply
-        String tagsPattern = "(?i)tags[:\\s]*([^\\n]*)"; // Matches "tags: " and captures everything until a newline
+        String tagsPattern = "(?i)tags[:\\s]*([^\\n]*)";
         Matcher matcher = Pattern.compile(tagsPattern).matcher(responseBody);
 
         if (matcher.find()) {
-            String tags = matcher.group(1).trim(); // Extract the tags
-            log.debug("Extracted Tags: {}", tags); // Log the extracted tags for debugging
-            return tags; // Return the tags directly
+            String tags = matcher.group(1).trim();
+            log.debug("Extracted Tags: {}", tags);
+            return tags;
         }
-        return ""; // Return an empty string if no tags are found
+        return "";
     }
 
     private Set<String> processTags(String tagsString) {
@@ -85,6 +84,6 @@ public class BedrockService {
                 }
             }
         }
-        return tagsSet; // Return unique tags set
+        return tagsSet;
     }
 }
