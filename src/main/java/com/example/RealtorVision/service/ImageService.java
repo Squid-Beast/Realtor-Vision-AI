@@ -2,10 +2,13 @@ package com.example.RealtorVision.service;
 
 import com.example.RealtorVision.config.AwsS3Config;
 import com.example.RealtorVision.config.AwsSqsConfig;
+import com.example.RealtorVision.entity.ImageDetails;
+import com.example.RealtorVision.entity.MarketingOrder;
 import com.example.RealtorVision.pojo.ImageDetailsDto;
 import com.example.RealtorVision.pojo.ImageResponse;
 import com.example.RealtorVision.repository.ImageDetailsRepository;
 import com.example.RealtorVision.repository.MarketingOrderRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,7 +17,10 @@ import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 
+import java.time.Duration;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -48,7 +54,7 @@ public class ImageService {
         List<S3Object> objectList = listS3Objects();
         log.info("Total Objects in Bucket: {}", objectList.size());
 
-        objectList.forEach(this::processS3Object);
+        objectList.forEach(s3Object -> processS3Object(s3Object, imageDetailsDto));
 
         return new ImageResponse("Success", "Tags are being generated. Refresh the page in 2-3 seconds.");
     }
@@ -61,7 +67,7 @@ public class ImageService {
         return listObjectsResponse.contents();
     }
 
-    private void processS3Object(S3Object s3Object) {
+    private void processS3Object(S3Object s3Object, ImageDetailsDto imageDetailsDto) {
         String objectKey = s3Object.key();
         log.info("Processing S3 Object with Key: {}", objectKey);
 
@@ -72,7 +78,25 @@ public class ImageService {
         }
 
         try {
-            String tags = bedrockService.generateTagsFromImage(imageBytes).toString();
+            String tags = bedrockService.generateTagsFromImage(imageBytes);
+
+            ImageDetails imageDetails = new ImageDetails();
+            imageDetails.setHashtags(tags);
+            String presignedUrl = generatePresignedUrl(objectKey);
+            imageDetails.setImageUrl(presignedUrl);
+            imageDetails.setUploadDate(LocalDate.now());
+            imageDetails.setCreatedDate(LocalDate.now());
+            Long marketingOrderId = imageDetailsDto.getMarketingOrderId();
+            Optional<MarketingOrder> optionalOrder = marketingOrderRepository.findById(marketingOrderId);
+
+            if (optionalOrder.isPresent()) {
+                imageDetails.setMarketingOrder(optionalOrder.get());
+            } else {
+                throw new EntityNotFoundException("MarketingOrder not found for ID: " + marketingOrderId);
+            }
+
+            imageDetailsRepository.save(imageDetails);
+
             log.info("Generated Tags for S3 Object {}: {}", objectKey, tags);
         } catch (Exception e) {
             log.error("Error generating tags for image: {}", objectKey, e);
@@ -92,4 +116,21 @@ public class ImageService {
             return null;
         }
     }
+    private String generatePresignedUrl(String objectKey) {
+        try {
+            Duration expiration = Duration.ofHours(12);
+            GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(objectKey)
+                    .build();
+
+            return awsS3Config.s3Presigner().presignGetObject(presignRequest -> presignRequest
+                    .getObjectRequest(getObjectRequest)
+                    .signatureDuration(expiration)).url().toString();
+        } catch (Exception e) {
+            log.error("Error generating presigned URL for object key: {}", objectKey, e);
+            return null;
+        }
+    }
+
 }

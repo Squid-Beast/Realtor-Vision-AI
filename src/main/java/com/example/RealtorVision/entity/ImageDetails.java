@@ -5,7 +5,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @Entity
 @Getter
@@ -27,5 +26,5 @@ public class ImageDetails{
     @JoinColumn(name = "marketing_order_id",nullable = false)
     private MarketingOrder marketingOrder;
     @Column(name = "hashtags")
-    private List<String> hashtags;
+    private String hashtags;
 }

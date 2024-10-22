@@ -19,5 +19,5 @@ public class ImageDetailsDto {
     private LocalDate uploadDate;
     private LocalDate createdDate;
     private Long marketingOrderId;
-    private List<String> hashtags;
+    private String hashtags;
 }
